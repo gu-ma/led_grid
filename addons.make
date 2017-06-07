@@ -1,0 +1,10 @@
+ofxAbletonLive
+ofxBlackmagic
+ofxCv
+ofxDLibAntimodular
+ofxEasing
+ofxImGui
+ofxOpenCv
+ofxOsc
+ofxTimer
+ofxVideoRecorder
