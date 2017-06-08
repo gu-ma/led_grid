@@ -1,8 +1,8 @@
 ofxAbletonLive
 ofxBlackmagic
 ofxCv
-ofxDLibAntimodular
 ofxEasing
+ofxFaceTracker2
 ofxImGui
 ofxOpenCv
 ofxOsc

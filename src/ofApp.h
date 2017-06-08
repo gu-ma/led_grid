@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ofMain.h"
-#include "FaceTracker.h"
+#include "ofxFaceTracker2.h"
 #include "ofxVideoRecorder.h"
 #include "ofxImGui.h"
 #include "ofxCv.h"
@@ -16,7 +16,7 @@
 #include "ofVidRec.h" // encapsulate ofxVideoRecorder.h for convenience
 #include "ofLogAudio.h"
 
-//#define _USE_LIVE_VIDEO
+#define _USE_LIVE_VIDEO
 //#define _USE_BLACKMAGIC
 
 class ofApp : public ofBaseApp{
@@ -74,9 +74,9 @@ public:
     bool inputIsFiltered, inputIsColored, imgIsFiltered, imgIsColored;
     
     // ft
-    ofxDLib::FaceTracker ft;
-    vector<ofxDLib::Face> faces;
-    ofxDLib::Face focusedFace;
+    ofxFaceTracker2 ft;
+    vector<ofxFaceTracker2Instance> faces;
+    ofRectangle focusedFaceRect;
     ofPixels getFacePart(ofPixels sourcePixels, ofPolyline partPolyline, float downScale, float zoom, float offset, bool isSquare);
     float smoothingRate;
     bool enableTracking, isFocused, facesFound;
