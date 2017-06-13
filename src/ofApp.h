@@ -10,13 +10,13 @@
 #include "ofxAbletonLive.h"
 #include "ofxeasing.h"
 #include "ofxBlackMagic.h"
+#include "ofxHAPAVPlayer.h"
 // local files
 #include "Clahe.h"
 #include "ofGrid.h"
-#include "ofVidRec.h" // encapsulate ofxVideoRecorder.h for convenience
 #include "ofLogAudio.h"
 
-#define _USE_LIVE_VIDEO
+//#define _USE_LIVE_VIDEO
 //#define _USE_BLACKMAGIC
 
 class ofApp : public ofBaseApp{
@@ -50,6 +50,7 @@ public:
     void loadVideos(), drawVideos(), stopVideos(), updateVideos() ;
     int dirSize, countVideos;
     ofDirectory dir;
+//    vector<ofxHAPAVPlayer> videosVector;
     vector<ofVideoPlayer> videosVector;
     bool playVideos;
     
@@ -63,15 +64,15 @@ public:
     // capture
     ofVideoGrabber cam;
     ofVideoPlayer movie;
-    ofImage inputImg, inputImgFiltered, scaledImg, scaledImgFiltered;
-    ofPixels inputPixels;
+    ofImage srcImg, srcImgFiltered;
+    ofPixels srcPixels;
     float downSize;
     bool showCapture;
     
     // filter
     int claheClipLimit;
     Clahe clahe;
-    bool inputIsFiltered, inputIsColored, imgIsFiltered, imgIsColored;
+    bool srcImgIsFiltered, srcImgIsColored;
     
     // ft
     ofxFaceTracker2 ft;
@@ -96,9 +97,11 @@ public:
     ofGrid grid;
     
     // video recording
-    ofVidRec vidRecorder;
+    ofxVideoRecorder vidRecorder;
     bool isRecording;
     string faceVideoPath;
+    void recordingComplete(ofxVideoRecorderOutputFileCompleteEventArgs& args);
+    
     
     // Ableton live
     ofxAbletonLive live;

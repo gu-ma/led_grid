@@ -6,10 +6,10 @@ void ofApp::setup(){
     // general
     // ofSetBackgroundAuto(false);
     ofSetVerticalSync(true);
+    ofSetFrameRate(15);
     varSetup();
     ofSetBackgroundColor(0);
     ofSetWindowShape(1000, 1000);
-//    ofSetWindowPosition(100, 500);
 //    ofSetWindowShape(800, 400);
 //    ofSetWindowPosition(500, 500);
     // text loading
@@ -29,14 +29,20 @@ void ofApp::setup(){
     log.start();
     // ft
     ft.setup("../../../../models/shape_predictor_68_face_landmarks.dat");
-    ft.setFaceDetectorImageSize(20000000);
-    ft.setLandmarkDetectorImageSize(10000000);
+    ft.setFaceDetectorImageSize(2000000);
+    ft.setLandmarkDetectorImageSize(1000000);
+    ft.setSmoothingRate(1);
     ft.setThreaded(true);
-    
     // grid
     grid.init(gridWidth, gridHeight, gridRes, gridMinSize, gridMaxSize, gridIsSquare);
     // video recording
-    vidRecorder.init(".mov", "hap", "300k");
+    vidRecorder.setVideoCodec("mpeg4");
+    vidRecorder.setVideoBitrate("2000k");
+//    vidRecorder.setAudioCodec("mp3");
+//    vidRecorder.setAudioBitrate("320k");
+    ofAddListener(vidRecorder.outputFileCompleteEvent, this, &ofApp::recordingComplete);
+    //
+    loadVideos();
     // capture
     #ifdef _USE_LIVE_VIDEO
         #ifdef _USE_BLACKMAGIC
@@ -46,7 +52,7 @@ void ofApp::setup(){
             cam.setup(1920, 1080);
         #endif
     #else
-        movie.load("vids/test.mov");  // 1280x720
+        movie.load("vids/Busy business commuters in London.mp4");  // 1280x720
         movie.play();
     #endif
     // Live
@@ -80,43 +86,25 @@ void ofApp::update(){
         // capture
         #ifdef _USE_LIVE_VIDEO
             #ifdef _USE_BLACKMAGIC
-                inputImg.setFromPixels(blackCam.getColorPixels());
+                srcImg.setFromPixels(blackCam.getColorPixels());
             #else
-                inputImg.setFromPixels(cam.getPixels());
+                srcImg.setFromPixels(cam.getPixels());
             #endif
         #else
-            inputImg.setFromPixels(movie.getPixels());
+            srcImg.setFromPixels(movie.getPixels());
         #endif
-        // mirror and crop the input
-        inputImg.mirror(false, true);
-        inputImg.crop((inputImg.getWidth()-inputImg.getHeight())/2, 0, inputImg.getHeight(), inputImg.getHeight());
-        // resize the input image to feed to the tracker to improve the frame rate
-        scaledImg = inputImg;
-        scaledImg.resize(scaledImg.getWidth()/downSize, scaledImg.getHeight()/downSize);
-        scaledImg.update();
-        // Filter input image
-        if (inputIsFiltered) {
-            clahe.filter(scaledImg, scaledImgFiltered, claheClipLimit, inputIsColored);
-            scaledImgFiltered.update();
-            // ft update
-            ft.update(scaledImgFiltered.getPixels());
-        } else {
-            // ft update
-            ft.update(scaledImgFiltered.getPixels());
-        }
-        // Filter output image
-        if (imgIsFiltered) {
-            clahe.filter(inputImg, inputImgFiltered, claheClipLimit, imgIsColored);
-            inputImgFiltered.update();
-            // assign the inputPixels
-            inputPixels = inputImgFiltered.getPixels();
-        } else {
-            // assign the inputPixels
-            inputImg.update();
-            inputPixels = inputImg.getPixels();
-        }
         
-        // start the "logic" ;)
+        // mirror and crop the source
+        srcImg.mirror(false, true);
+        srcImg.crop((srcImg.getWidth()-srcImg.getHeight())/2, 0, srcImg.getHeight(), srcImg.getHeight());
+        // Filter  image
+        if (srcImgIsFiltered) {
+            clahe.filter(srcImg, srcImg, claheClipLimit, srcImgIsColored);
+            srcImg.update();
+        }
+        ft.update(srcImg.getPixels());
+        srcPixels = srcImg.getPixels();
+        
         // *********
         // Faces aren't found
         if ( ft.size() == 0 ) {
@@ -126,56 +114,52 @@ void ofApp::update(){
                 timer01.reset();
                 timer01.startTimer();
                 // reset bools
-                facesFound = false, isRecording = false, playVideos = true, showGrid = false, isFocused = false;
+                facesFound = false, playVideos = true, showGrid = false, isFocused = false;
                 // stop vid recorder
-                vidRecorder.stop();
+                vidRecorder.close();
+                isRecording = false;
+                cout << "close recording " << endl;
                 // reset avg face w / h
                 faceAvgWidth = 0, faceAvgHeight = 0, faceTotalFrame = 0, faceTotalWidth = 0, faceTotalHeight = 0;
                 //
-                focusTime = 10;
+                focusTime = 20;
             }
+            // *********
+            // Idle mode
+            // If the first timer is finished we enter idle mode
             if (timer01.isTimerFinished()) {
-                // *********
-                // Idle mode
-                // No faces are detected for more than XX seconds
+                // set all variables
                 if (!isIdle) {
                     isIdle = true;
-                    showCapture = false;
-                    focusTime = 10 + (timeOut02/100);
+                    focusTime = 20 + (timeOut02/100);
                     // change the volume of track2
                     initTimesVolumes[0] = ofGetElapsedTimef(), startVolumes[0] = .4, endVolumes[0] = .2;
                     initTimesVolumes[1] = ofGetElapsedTimef(), startVolumes[1] = .6, endVolumes[1] = .2;
                     initTimesVolumes[2] = ofGetElapsedTimef(), startVolumes[2] = .4, endVolumes[2] = .4;
                     initTimesVolumes[3] = ofGetElapsedTimef(), startVolumes[3] = .4, endVolumes[3] = .4;
                     initTimesVolumes[4] = ofGetElapsedTimef(), startVolumes[4] = .6, endVolumes[4] = .4;
+                    loadVideos();
                 }
-                if (playVideos) {
-//                    loadVideos();
-                    playVideos = false;
-                    //
-                }
-                updateVideos();
             }
+        // *********
+        // Else some faces are detected
         } else {
-            // *********
-            // Faces are detected
             // It comes from idle mode
             if (isIdle && !facesFound) {
+                facesFound = true;
                 // start 2nd timer
                 timer02.reset();
                 timer02.startTimer();
-                facesFound = true;
             } else if (!facesFound) {
                 facesFound = true;
+                // stop vid recorder
+                vidRecorder.close();
+                isRecording = false;
+                cout << "close recording " << endl;
             }
-            // When the 2nd timer is finished show the capture
+            // *********
+            // If the 2nd timer is finished show the capture
             if (timer02.isTimerFinished()) {
-                timer02.reset();
-                showCapture = true;
-            }
-            //
-            if (showCapture) {
-                
                 // Stop the idle mode if necessary
                 if (isIdle) {
                     stopVideos();
@@ -190,40 +174,50 @@ void ofApp::update(){
                 // get faces
                 vector<ofGrid::PixelsItem> pis;
                 int i = 0;
-                int focusedFaceExists = false;
+//                bool focusedFaceExists = false;
                 for (auto & face : ft.getInstances()) {
-                    
                     // *********
                     // If one face is present more than XX seconds
                     // Save face label and set isFocused to true
-//                    if (face.age > focusTime && !isFocused) {
-//                        focusedFaceLabel = face.getLabel();
-//                        isFocused = true;
-//                        // start the timer
-//                        timer03.reset();
-//                        timer03.startTimer();
-//                        focusTime = 10;
-//                    }
-                    
+                    if (face.getAge() > focusTime && !isFocused) {
+                        //
+                        focusedFaceLabel = face.getLabel();
+                        isFocused = true;
+                        // start the timer
+                        timer03.reset();
+                        timer03.startTimer();
+                        focusTime = 20;
+                    }
                     // if the face is the one focused on
                     if (isFocused && face.getLabel()==focusedFaceLabel){
-                        focusedFaceRect = face.getBoundingBox();
-                        // create a rectangle with the average width and height of the face
-                        faceTotalFrame ++;
-                        faceTotalWidth += face.getBoundingBox().getWidth();
-                        faceTotalHeight += face.getBoundingBox().getHeight();
-                        faceAvgWidth = faceTotalWidth / faceTotalFrame;
-                        faceAvgHeight = faceTotalHeight / faceTotalFrame;
-                        ofRectangle r;
-                        r.setFromCenter(face.getBoundingBox().getCenter(), faceAvgWidth, faceAvgHeight);
-                        // extract the face and record it
-                        ofPixels faceCropped = getFacePart(inputPixels, ofPolyline::fromRectangle(r), downSize, .5, 0, true);
-                        vidRecorder.update(faceCropped);
                         // if not yet recording start the recording
                         if (!isRecording) {
-                            vidRecorder.start(faceVideoPath, ofToString(face.getLabel()),  256, 256, (int)ofGetFrameRate());
+                            vidRecorder.setup( faceVideoPath + "/" + ofGetTimestampString("%Y%m%d-%H%M%S") + "-" + ofToString(focusedFaceLabel) + ".mov", 256, 256, (int)ofGetFrameRate() ); // no audio
+//                            vidRecorder.setup( faceVideoPath + "/test.mov", 256, 256, (int)ofGetFrameRate() ); // no audio
+                            vidRecorder.start();
                             isRecording = true;
                         }
+                        if(isRecording && vidRecorder.isInitialized()){
+                            // create a rectangle with the average width and height of the face
+                            faceTotalFrame ++;
+                            faceTotalWidth += face.getBoundingBox().getWidth();
+                            faceTotalHeight += face.getBoundingBox().getHeight();
+                            faceAvgWidth = faceTotalWidth / faceTotalFrame;
+                            faceAvgHeight = faceTotalHeight / faceTotalFrame;
+                            ofRectangle r;
+                            r.setFromCenter(face.getBoundingBox().getCenter(), faceAvgWidth, faceAvgHeight);
+                            focusedFaceRect = r;
+                            // extract the face and record it
+//                            ofImage img = srcPixels;
+//                            img.resize(256, 256);
+//                            vidRecorder.addFrame(img);
+                            ofPixels faceCropped = getFacePart(srcPixels, ofPolyline::fromRectangle(r), 1, .5, 0, true);
+                            if (faceCropped.resize(vidRecorder.getWidth(),vidRecorder.getHeight())) {
+                                bool success = vidRecorder.addFrame(faceCropped);
+                                if (!success) ofLogWarning("This frame was not added!");
+                            }
+                        }
+                        
                         // after a certain time, show the grid
                         if (timer03.isTimerFinished()) {
                             if (!showGrid) {
@@ -233,7 +227,7 @@ void ofApp::update(){
                                 initTimeGrid = ofGetElapsedTimef();
                             }
                         }
-                        focusedFaceExists = true;
+//                        focusedFaceExists = true;
                     }
                     
                     // select face elements for the grid
@@ -242,20 +236,19 @@ void ofApp::update(){
                             ofPolyline::fromRectangle(face.getBoundingBox()),
                             face.getLandmarks().getImageFeature(ofxFaceTracker2Landmarks::LEFT_EYE),
                             face.getLandmarks().getImageFeature(ofxFaceTracker2Landmarks::RIGHT_EYE),
-                            face.getLandmarks().getImageFeature(ofxFaceTracker2Landmarks::NOSE_BRIDGE),
+                            face.getLandmarks().getImageFeature(ofxFaceTracker2Landmarks::NOSE_BASE),
                             face.getLandmarks().getImageFeature(ofxFaceTracker2Landmarks::OUTER_MOUTH)
                         };
                         int j = 0;
                         for (auto & facePolyline : facePolylines) {
                             if (i < faceElementsQty.at(j)) {
-                                // WARNING WITH MEMORY
-                                pis.push_back(ofGrid::PixelsItem(getFacePart(inputPixels, facePolyline, downSize, faceElementsZoom.at(j), i*faceElementsOffset.at(j), true), ofGrid::rightEye));
+                                pis.push_back(ofGrid::PixelsItem(getFacePart(srcPixels, facePolyline, 1, faceElementsZoom.at(j), i*faceElementsOffset.at(j), true), ofGrid::rightEye));
                             }
                             j++;
                         }
                     }
                 }
-                isFocused = focusedFaceExists;
+//                isFocused = focusedFaceExists;
                 
                 // Grid
                 if (showGrid) {
@@ -268,17 +261,17 @@ void ofApp::update(){
                             float t = 5.f;
                             float d = 2.f;
                             auto startTime = initTimeGrid+(float)i/s*t;
-//                            auto startTime = initTimeGrid;
                             auto endTime = initTimeGrid+(float)i/s*t + d;
                             auto now = ofGetElapsedTimef();
                             grid.GridElements.at(i).setAlpha( ofxeasing::map_clamp(now, startTime, endTime, 0, 255, &ofxeasing::linear::easeOut) );
-//                            cout << grid.GridElements.at(i).alpha << endl;
-//                            cout << ofToString(i) + " " + ofToString(now) + " " + ofToString(startTime) + " " + ofToString(endTime) << endl;
                         }
                     }
                 }
             }
         }
+        
+        //
+        if (isIdle) updateVideos();
         
         // text
         if ( showGrid || isIdle ) {
@@ -326,38 +319,32 @@ void ofApp::update(){
 //--------------------------------------------------------------
 void ofApp::draw(){
     
-    // Draw tracked area
     ofPushMatrix();
         ofScale(sceneScale, sceneScale);
-    
-        if (showCapture){
-            //
-            if (isFocused) {
-                int focusSize = faceAvgWidth*2;
-                int x = focusedFaceRect.getCenter().x - focusSize/2;
-                int y = focusedFaceRect.getCenter().y - focusSize/2;
-                x = ofClamp(x, 0, inputPixels.getWidth()*downSize);
-                y = ofClamp(y, 0, inputPixels.getHeight()*downSize);
-                if (imgIsFiltered) inputImgFiltered.drawSubsection(0, 0, 192, 192, x*downSize, y*downSize, focusSize*downSize, focusSize*downSize);
-                else inputImg.drawSubsection(0, 0, 192, 192, x*downSize, y*downSize, focusSize*downSize, focusSize*downSize);
-            } else{
-                // draw inputImg
-                if (imgIsFiltered) inputImgFiltered.draw(0, 0, 192, 192);
-                else inputImg.draw(0, 0, 192, 192);
-                // draw facetracker
-                ofPushMatrix();
-                ofScale(192/scaledImg.getWidth(), 192/scaledImg.getWidth());
+        // We're not focused on one face
+        if (!isFocused) {
+            // draw outputImg
+            srcImg.draw(0, 0, 192, 192);
+            // draw facetracker
+            ofPushMatrix();
+                ofScale(192/srcImg.getWidth(), 192/srcImg.getWidth());
                 ft.drawDebug();
-                ofPopMatrix();
-            }
+            ofPopMatrix();
+        // Else we are focused on one face
+        } else {
+            int focusSize = faceAvgWidth*1.2;
+            int x = focusedFaceRect.getCenter().x - focusSize/2;
+            int y = focusedFaceRect.getCenter().y - focusSize/2;
+            x = ofClamp(x, 0, srcPixels.getWidth());
+            y = ofClamp(y, 0, srcPixels.getHeight());
+            srcImg.drawSubsection(0, 0, 192, 192, x, y, focusSize, focusSize);
         }
         // draw grid
         if (showGrid) grid.draw();
         else if (showGridElements) grid.drawGridElements();
         //
         if (isIdle) drawVideos();
-    
-        // Text TEST
+        // Text
         if (showText) {
             ofPushStyle();
                 ofSetColor(ofColor(255,50,0,220));
@@ -373,11 +360,9 @@ void ofApp::draw(){
                 if (textContentIndex==2) textDisplay.at(2).drawString(wrapString(textContent.at(2), s*2-padding*2, textDisplay.at(2)), s*4+padding, s*4+padding+4*2);
             ofPopStyle();
         }
-    
         // draw Smiley
         ofPushStyle();
         ofPushMatrix();
-            // BAD
             ofTranslate(161,174);
             ofSetColor(ofColor::red);
             ofDrawCircle(6, 5, 1);
@@ -428,15 +413,18 @@ void ofApp::loadVideos() {
     dir.listDir(faceVideoPath);
     dir.sort();
     if(dir.size()>countVideos){
-        videosVector.assign(countVideos, ofVideoPlayer());
+        videosVector.resize(countVideos);
+    } else {
+        videosVector.resize(dir.size());
     }
     // iterate through the files and load them into the vector
     int j = 0;
     // reverse browsing the dir
-    for(int i=(int)dir.size()-1; i>=0 && j<countVideos; i--){
-        if ( dir.getFile(i).getSize()>100000 && videosVector[j].load(dir.getPath(i))) {
+    for(int i=(int)dir.size()-1; i>=0 && j<videosVector.size(); i--){
+        if ( dir.getFile(i).getSize()>100000 ) {
+            videosVector[j].load(dir.getPath(i));
             videosVector[j].setLoopState(OF_LOOP_PALINDROME);
-            videosVector[j].setSpeed(30);
+//            videosVector[j].setSpeed((int)ofGetFrameRate());
             videosVector[j].play();
             j++;
         }
@@ -448,14 +436,8 @@ void ofApp::loadVideos() {
 void ofApp::drawVideos() {
     if (videosVector.size()) {
         for(int i = 0; i < videosVector.size(); i++){
-//            if (videosVector[i].isFrameNew()) {
-                videosVector[i].draw((i%2)*96,(i/2)*96, 96, 96);
-//                ofImage img;
-//                img.setFromPixels(videosVector[i].getPixels());
-//                img.resize(192,192);
-//                //            img.drawSubsection((i%4)*48, 0, 48, 192, (i%4)*48, 0);
-//                img.drawSubsection((i%2)*96, (i/2)*96, 96, 96, (i%2)*96, (i/2)*96);
-//            }
+            videosVector[i].draw((i%2)*96,(i/2)*96, 96, 96);
+//            ofLog(OF_LOG_NOTICE, ofToString(videosVector[i].getSpeed()));
         }
     }
 }
@@ -474,7 +456,7 @@ void ofApp::stopVideos() {
     if (videosVector.size()) {
         for(int i = 0; i < videosVector.size(); i++){
             videosVector[i].stop();
-            videosVector[i].closeMovie();
+            videosVector[i].close();
         }
     }
 }
@@ -494,7 +476,6 @@ void ofApp::randomizeSettings(){
     //
     for (int i=0; i < faceElementsZoom.size() ; i++) {
         faceElementsZoom.at(i) = (i>0) ? ofRandom(.2, .5) : ofRandom(.5, 1);
-        cout << faceElementsZoom.at(i) << endl;
     }
     // grid
     if (ofRandom(1)>.4) {
@@ -515,11 +496,6 @@ void ofApp::randomizeSettings(){
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
     if (key == 's') showText = !showText;
-//    if (key == 'g') showGrid = !showGrid;
-//    if (key == 'f') showGridElements = !showGridElements;
-//    if (key == 'r') vidRecorder.start(256, 256, (int)ofGetFrameRate(),0);
-//    if (key == 's') vidRecorder.stop();
-    //
     if (key == '0') initLive();
     if (key == 'l') live.printAll();
     if (key == '.') {
@@ -539,28 +515,28 @@ void ofApp::varSetup(){
     isIdle = true;
     sceneScale = 1;
     // capture
-    downSize = 1;
-    showCapture = true, facesFound = false;
+    facesFound = false;
     // video recording
     faceVideoPath = "output/face";
     playVideos = true;
     countVideos = 4;
+    isRecording = false;
     // timers
     timeOut01 = 5000; // time before iddle
-    timeOut02 = 2000; // time before showCapture
+    timeOut02 = 2000; // time before show Capture
     timeOut03 = 1000; // time before grid
     timeOut04 = 20000; // time before starting speaking
     timeOut05 = 5000; // time to wait when finish speaking
     timer01.setup(timeOut01, false), timer02.setup(timeOut02, false), timer03.setup(timeOut03, false), timer04.setup(timeOut04, false), timer05.setup(timeOut05, false);
     // ft
-    focusTime = 10; // time before focusing + recording
+    focusTime = 20; // time before focusing + recording
     smoothingRate = 1;
     enableTracking = true;
     isFocused = false;
     faceAvgWidth = 0, faceAvgHeight = 0, faceTotalFrame = 0, faceTotalWidth = 0, faceTotalHeight = 0;
     // filter
     claheClipLimit = 2;
-    inputIsFiltered = true, inputIsColored = false, imgIsFiltered = true, imgIsColored = false;
+    srcImgIsFiltered = true, srcImgIsColored = false;
     // grid
     showGrid = false;
     showGridElements = false;
@@ -591,13 +567,10 @@ void ofApp::guiDraw(){
     // GUI
     gui.begin();
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        ImGui::SliderFloat("Down size input", &downSize, 1, 4);
         ImGui::SliderInt("sceneScale", &sceneScale, 1, 12);
         ImGui::SliderInt("claheClipLimit", &claheClipLimit, 0, 6);
-        ImGui::Checkbox("inputIsFiltered", &inputIsFiltered);
-        ImGui::Checkbox("inputIsColored", &inputIsColored);
-        ImGui::Checkbox("imgIsColored", &imgIsColored);
-        ImGui::Checkbox("imgIsFiltered", &imgIsFiltered);
+        ImGui::Checkbox("srcImgIsFiltered", &srcImgIsFiltered);
+        ImGui::Checkbox("srcImgIsColored", &srcImgIsColored);
 //        if (ImGui::SliderFloat("smoothingRate", &smoothingRate, 0, 6)) ft.setSmoothingRate(smoothingRate);
         if (ImGui::CollapsingHeader("Grid", false)) {
             ImGui::SliderInt("gridWidth", &gridWidth, 1, 24);
@@ -667,8 +640,12 @@ void ofApp::refreshLive() {
 
 //--------------------------------------------------------------
 void ofApp::exit(){
+    //
+    ofRemoveListener(vidRecorder.outputFileCompleteEvent, this, &ofApp::recordingComplete);
     vidRecorder.close();
+    //
     blackCam.close();
+    //
     if (live.isLoaded()) live.stop();
 }
 
@@ -695,6 +672,12 @@ string ofApp::wrapString(string text, int width, ofTrueTypeFont textField) {
         typeWrapped += wrd;
     }
     return typeWrapped;
+}
+
+
+//--------------------------------------------------------------
+void ofApp::recordingComplete(ofxVideoRecorderOutputFileCompleteEventArgs& args){
+    cout << "The recoded video file is now complete." << endl;
 }
 
 

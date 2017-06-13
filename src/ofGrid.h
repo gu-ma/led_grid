@@ -60,72 +60,6 @@ public:
         }
     };
     
-    //
-//    class TextItem {
-//    public:
-//        string textBuffer;
-//        int scaling, fontSize, lineHeight, padding;
-//        ofTrueTypeFont textDisplay;
-//        
-//        TextItem(string txt, int s): textBuffer(txt), scaling(s) {
-//            this->lineHeight = 10;
-//            this->fontSize = 6*s;
-//            this->padding = 6*s;
-//            textDisplay.load("fonts/pixelmix.ttf", this->fontSize, false, false, false, 144);
-//            textDisplay.setLineHeight(this->lineHeight*s);
-//        }
-//        
-//        void draw(int x, int y, int w, int h, ofColor bckgrdColor) {
-//            if (!textBuffer.empty()) {
-//                wrapString(w-this->padding*2);
-//                ofSetColor(bckgrdColor);
-//                ofDrawRectangle(x, y, w, h);
-//                ofSetColor(255);
-//                textDisplay.drawString(textBuffer, x+this->padding/2, y+this->padding+4*this->scaling);
-////                textDisplay.drawString(textBuffer, x+3*scaling, y+4*scaling+(6*scaling));
-//            }
-//        }
-//        
-//        int getArea() {
-//            int c = 1; // buffer to add for the char width
-//            int area = textBuffer.size() * (this->textDisplay.getLineHeight()) * (this->textDisplay.getSize()+c);
-//            int perimeterPadding = sqrt(area) * 4 * this->padding;
-//            return (area + perimeterPadding);
-//        }
-//        
-//        void wrapString(int width) {
-//            if (!textBuffer.empty()) {
-//                string typeWrapped = "";
-//                string tempString = "";
-//                vector <string> words = ofSplitString(textBuffer, " ");
-//                for(int i=0; i<words.size(); i++) {
-//                    string wrd = words[i];
-//                    if (i > 0) {
-//                        // if we aren't on the first word, add a space
-//                        tempString += " ";
-//                    }
-//                    tempString += wrd;
-//                    int stringwidth = textDisplay.stringWidth(tempString);
-//                    if(stringwidth >= width) {
-//                        typeWrapped += "\n";
-//                        tempString = wrd;		// make sure we're including the extra word on the next line
-//                    } else if (i > 0) {
-//                        // if we aren't on the first word, add a space
-//                        typeWrapped += " ";
-//                    }
-//                    typeWrapped += wrd;
-//                }
-//                textBuffer = typeWrapped;
-//            }
-//        }
-//
-//        void clear() {
-//            textBuffer.clear();
-//            scaling = 1;
-//        }
-//        
-//    };
-
     class GridElement {
     public:
         ofRectangle rectangle;
@@ -143,7 +77,6 @@ public:
     bool squareOnly;
     vector<PixelsItem> pixelsItems;
     vector<GridElement> GridElements;
-    //    vector<TextItem> textItems;
     
     //
     void init(int width, int height, int resolution, int minSize, int maxSize, bool squareOnly) {
@@ -178,13 +111,6 @@ public:
                 j ++;
                 ofSetColor(255);
             }
-            //
-//            if (ge.contentType == text && !this->textItems.empty()) {
-//                TextItem ti = this->textItems.at((i)%this->textItems.size());
-////                ti.draw(x, y, w, h, ofColor(ofMap(i, 0, this->textItems.size(), 0, 255), 0, 0) );
-//                ti.draw(x, y, w, h, ofColor(255, 0, 0) );
-//                i ++;
-//            }
         }
         
     }
@@ -196,15 +122,7 @@ public:
     void clearPixels(){
         this->pixelsItems.clear();
     }
-//
-//    void updateText(vector<TextItem> ti){
-//        this->textItems.assign(ti.begin(), ti.end());
-//    }
-//
-//    void clearText(){
-//        this->textItems.clear();
-//    }
-    
+
     void clearGridElements() {
         this->GridElements.clear();
     }
@@ -213,22 +131,6 @@ public:
         this->clearGridElements();
         int i = 0;
         int x,y,w,h,rw,rh;
-        
-//        // create text grid
-//        while (!this->textItems.empty() && i<textItems.size()) {
-//            x = ofRandom(this->width);
-//            y = ofRandom(this->height);
-//            w = sqrt(textItems.at(i).getArea())/this->resolution;
-//            h = w;
-////            if (rw <= (this->width-x) && rw <= (this->height-y)) {
-////                w = rw;
-////                h = rw;
-////            } else {
-////                w = (this->width-x > this->height-y) ? this->height-y : this->width-x;
-////                h = w;
-////            }
-//            if (addGridElement(i, text, leftEye, x, y, w, h)) i++;
-//        }
         
         // create pixel grid
         // sometime makes it following the grid exactly
