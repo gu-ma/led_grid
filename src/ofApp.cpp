@@ -6,12 +6,12 @@ void ofApp::setup(){
     // general
     // ofSetBackgroundAuto(false);
     ofSetVerticalSync(true);
-    ofSetFrameRate(15);
+//    ofSetFrameRate(15);
+//    ofSetBackgroundColor(0);
+//    ofSetWindowShape(1000, 1000);
     varSetup();
-    ofSetBackgroundColor(0);
-    ofSetWindowShape(1000, 1000);
-//    ofSetWindowShape(800, 400);
-//    ofSetWindowPosition(500, 500);
+    ofSetWindowShape(800, 400);
+    ofSetWindowPosition(500, 500);
     // text loading
     ofBuffer buffer = ofBufferFromFile("txt/love_lyrics.txt");
     //
@@ -23,21 +23,22 @@ void ofApp::setup(){
             }
         }
     }
+    textFileIndex = ofRandom(textFileLines.size()-1);
     // GUI
     gui.setup();
     // TTS
     log.start();
     // ft
     ft.setup("../../../../models/shape_predictor_68_face_landmarks.dat");
-    ft.setFaceDetectorImageSize(2000000);
-    ft.setLandmarkDetectorImageSize(1000000);
+    ft.setFaceDetectorImageSize(20000000);
+    ft.setLandmarkDetectorImageSize(10000000);
     ft.setSmoothingRate(1);
-    ft.setThreaded(true);
+    ft.setThreaded(false);
     // grid
     grid.init(gridWidth, gridHeight, gridRes, gridMinSize, gridMaxSize, gridIsSquare);
     // video recording
-    vidRecorder.setVideoCodec("mpeg4");
-    vidRecorder.setVideoBitrate("2000k");
+    vidRecorder.setVideoCodec("mjpeg");
+    vidRecorder.setVideoBitrate("1000k");
 //    vidRecorder.setAudioCodec("mp3");
 //    vidRecorder.setAudioBitrate("320k");
     ofAddListener(vidRecorder.outputFileCompleteEvent, this, &ofApp::recordingComplete);
@@ -52,7 +53,7 @@ void ofApp::setup(){
             cam.setup(1920, 1080);
         #endif
     #else
-        movie.load("vids/Busy business commuters in London.mp4");  // 1280x720
+        movie.load("vids/test.mov");  // 1280x720
         movie.play();
     #endif
     // Live
@@ -257,9 +258,9 @@ void ofApp::update(){
                     // easing of alpha
                     int s = grid.GridElements.size();
                     if (s) {
-                        for (int i=0; i<grid.GridElements.size(); i++) {
-                            float t = 5.f;
-                            float d = 2.f;
+                        for (int i=0; i<s; i++) {
+                            float t = 4.f;
+                            float d = 1.5;
                             auto startTime = initTimeGrid+(float)i/s*t;
                             auto endTime = initTimeGrid+(float)i/s*t + d;
                             auto now = ofGetElapsedTimef();
@@ -311,6 +312,8 @@ void ofApp::update(){
                 timer05.reset();
                 timer05.stopTimer();
             }
+        } else {
+            showText = false;
         }
     }
 }
