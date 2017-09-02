@@ -33,7 +33,7 @@ void ofApp::setup(){
     ft.setFaceDetectorImageSize(20000000);
     ft.setLandmarkDetectorImageSize(10000000);
     ft.setSmoothingRate(1);
-    ft.setThreaded(false);
+    ft.setThreaded(true);
     // grid
     grid.init(gridWidth, gridHeight, gridRes, gridMinSize, gridMaxSize, gridIsSquare);
     // video recording
@@ -222,7 +222,7 @@ void ofApp::update(){
                         // after a certain time, show the grid
                         if (timer03.isTimerFinished()) {
                             if (!showGrid) {
-                                randomizeSettings();
+//                                randomizeSettings();
                                 grid.init(gridWidth, gridHeight, gridRes, gridMinSize, gridMaxSize, gridIsSquare);
                                 showGrid = true;
                                 initTimeGrid = ofGetElapsedTimef();

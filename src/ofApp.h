@@ -16,7 +16,7 @@
 #include "ofGrid.h"
 #include "ofLogAudio.h"
 
-//#define _USE_LIVE_VIDEO
+#define _USE_LIVE_VIDEO
 //#define _USE_BLACKMAGIC
 
 class ofApp : public ofBaseApp{
@@ -101,7 +101,6 @@ public:
     bool isRecording;
     string faceVideoPath;
     void recordingComplete(ofxVideoRecorderOutputFileCompleteEventArgs& args);
-    
     
     // Ableton live
     ofxAbletonLive live;
